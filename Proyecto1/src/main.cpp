@@ -1,126 +1,156 @@
 #include <Arduino.h>
 
+/* Declaración de funciones */
+int readSwitches();   //Lee el estado del switch
+void updateLeds(int mode);   //Actualiza el estado de un led
+void updateAllLEDs();   //Actualiza el estado de todos los  led
+void printStatus();   
+
 // Definición de pines
 const int switchPins[4] = {A0, A1, A2, A3}; // Pines de los switches
 const int ledPins[5] = {13, 12, 11, 10, 9}; // Pines de los LEDs
 
-// Estado inicial de los LEDs
-bool EstadoLeds[5] = {false, false, false, false, false};
+// Array para almacenar los estados de los LEDs
+bool ledStates[5] = {false, false, false, false, false};
 
-// Variables de tiempo
-unsigned long previousMillis = 0;   //Almacena el tiempo que lleve millis()
-int blinkContador = 0;   //Lleva la cuenta de cuantas veces a parpadeado el LED
-int blinkLimite = 3;   //Define el límite de parpadeo por ciclos
-int blinkIntervalo = 1000; // Intervalo de parpadeo (modificable según el switch activo)
+// Variables para el manejo de tiempos y modo actual
+unsigned long lastToggleTime = 0;   //Guarda el tiempo en que se realizó el último cambio de estado de LED
+int currentMode = 0;   // 0: ninguno; 1: switch 1; 2: switch 2; 3: switch 3; 4: switch 4. Indica el modo actual dependiendo del switch activado
+int lastMode = 0;   //Guarda el último modo activo para detectar cambios
 
 void setup() {
-    Serial.begin(9600);
-    
-    // Configurar switches como entradas con pull-up
-    for (int i = 0; i < 4; i++) {
-        pinMode(switchPins[i], INPUT);
-    }
-    
-    // Configurar LEDs como salida
-    for (int i = 0; i < 5; i++) {
-        pinMode(ledPins[i], OUTPUT);
-    }
+  Serial.begin(9600);
+  
+  // Configuración de los pines de los switches como INPUT
+  for (int i = 0; i < 4; i++) {
+    pinMode(switchPins[i], INPUT);
+  }
+  
+  // Configuración de los pines de los LEDs como salida
+  for (int i = 0; i < 5; i++) {
+    pinMode(ledPins[i], OUTPUT);
+  }
+  
+  Serial.println("Sistema iniciado.");   //Mensaje de inicio en el Monitor Serial
 }
-
-//DECLARACIÓN DE FUNCIONES (antes de usarlas)
-int controlSwitches();
-void controlLeds(int activeSwitch);
-void apagarLeds();
-void conmutadorLeds(int activeSwitch);
 
 void loop() {
-
-    int activeSwitch = controlSwitches(); // Detectar qué switch está activado
-    controlLeds(activeSwitch); // Controlar los LEDs según el switch activo
-    Serial.print("Switch activado: ");
-    Serial.println(activeSwitch); // Imprimir estado en consola
-    delay(2000);
+  // Lee los switches y determina el modo (1 a 4), o 0 si ninguno está presionado
+  currentMode = readSwitches();
+  
+  // Si se produce un cambio de modo, reinicia el temporizador y muestra el cambio
+  if (currentMode != lastMode) {
+    lastToggleTime = millis();   //Si cambia el modo, actualiza lastToggleTime
+    lastMode = currentMode;   //Guarda el nuevo modo
+    Serial.print("Cambio de modo a: ");
+    Serial.println(currentMode);
+  }
+  
+  updateLeds(currentMode);   // Actualiza el parpadeo según el modo seleccionado
+  updateAllLEDs();   // Llama la función para actualizar el estado de los pines de salida con digitalWrite()
+  printStatus();   // Imprime el estado de los LEDs
+  delay(1000);   //Retardo para observar mejor los mensajes en el Monitor Serial
 }
 
-// Función para leer switches
-int controlSwitches() {
-    for (int i = 0; i < 4; i++) {
-        if (digitalRead(switchPins[i]) == LOW) {
-            return i + 1; // Retorna el número de switch activado (1-4)
-        }
+/*
+   readSwitches():
+   Recorre los 4 pines de switch y usa una variable bool switchState para almacenar su lectura.
+   El switch se activa (presionado) cuando digitalRead() es LOW.
+   Se retorna el número del switch presionado (1 a 4) o 0 si ninguno está activado.
+*/
+int readSwitches() {
+  bool switchState = false;   //Detecta si el switch está presionado
+  for (int i = 0; i < 4; i++) {
+    switchState = (digitalRead(switchPins[i]) == LOW);
+    if (switchState) {
+      return i + 1;  // Retorna 1 para switchPins[0], 2 para switchPins[1], etc.
     }
-    return 0; // Ningún switch activado
+  }
+  return 0; // Ningún switch presionado
 }
 
-// Función para controlar LEDs
-void controlLeds(int activeSwitch) {
-    static unsigned long lastMillis = 0;  //Almacena el tiempo de la última actualización de los LEDs
-    static int blinkCounter = 0;   //Cuenta cuántas veces ha parpadeado el LED
-    unsigned long currentMillis = millis();   //uarda el tiempo actual en milisegundos desde que se encendió el Arduino
-    
-    switch (activeSwitch) {
-        case 1:
-            blinkIntervalo = 333; // 3 veces por segundo
-            break;
-        case 2:
-            blinkIntervalo = 167; // 3 veces por medio segundo
-            break;
-        case 3:
-            blinkIntervalo = 83;  // 3 veces por cuarto de segundo
-            break;
-        case 4:
-            blinkIntervalo = 500; // Todos los LEDs parpadean cada 1 segundo
-            break;
-        default:
-            blinkCounter = 0;
-            apagarLeds(); // Apaga todos los LEDs si no hay switches activados
-            return;
+/*
+   updateLeds():
+   Utiliza un switch-case para definir el comportamiento según el modo:
+   - Modo 1: LED 1 parpadea 3 veces por cada segundo (toggle/conmutación cada ~166 ms) y los demás apagados.
+   - Modo 2: LED 2 parpadea 3 veces por cada medio segundo (toggle/conmutación cada ~83 ms) y los demás apagados.
+   - Modo 3: LED 3 parpadea 3 veces por cada cuarto de segundo (toggle/conmutación cada ~41 ms) y los demás apagados.
+   - Modo 4: Todos los LEDs parpadean (toggle/conmutación cada 500 ms).
+   - Si no hay modo (0), se apagan todos los LEDs.
+*/
+void updateLeds(int mode) {
+  unsigned long currentMillis = millis();   //Guarda el tiempo actual desde que se ejecutó el programa usando millis()
+  
+  switch (mode) {
+    case 1: {
+      if (currentMillis - lastToggleTime >= 166) { //Indica cuánto tiempo ha pasado desde eel últimmo cambio de estado de LED y lo compara con el tiempo requerido. En este caso ~166 ms para 3 ciclos en 1 s
+        lastToggleTime = currentMillis;   //Se actualiza el tiempo desde el cambio de estado de LED
+        ledStates[0] = !ledStates[0]; //Alterna el estado del LED
+        // Aseguramos que los demás LEDs permanezcan apagados
+        ledStates[1] = ledStates[2] = ledStates[3] = ledStates[4] = false;
+        Serial.println("Parpadeo LED 1");
+      }
+      break;
     }
-    
-    if (currentMillis - lastMillis >= blinkIntervalo && blinkCounter < blinkLimite * 2) {   //verifica si ha pasado el tiempo suficiente desde el último cambio de estado del LED y comprueba el número de parpadeos
-        lastMillis = currentMillis;   //Actualiza el tiempo antes de otro intervalo de parpadeo
-        conmutadorLeds(activeSwitch);   //Cambia el estado del LED correspondiente
-        blinkCounter++;   //Se incrementa el contador
+    case 2: {
+      if (currentMillis - lastToggleTime >= 83) {  // ~83 ms para 3 ciclos en 0.5 s
+        lastToggleTime = currentMillis;
+        ledStates[1] = !ledStates[1];
+        ledStates[0] = ledStates[2] = ledStates[3] = ledStates[4] = false;
+        Serial.println("Parpadeo LED 2");
+      }
+      break;
     }
-    
-    if (blinkCounter >= blinkLimite * 2) {   //Verifica que no se exceda el límite de parpadeos
-        blinkCounter = 0;   //Reinicia el contador
+    case 3: {
+      if (currentMillis - lastToggleTime >= 41) {  // ~41 ms para 3 ciclos en 0.25 s
+        lastToggleTime = currentMillis;
+        ledStates[2] = !ledStates[2];
+        ledStates[0] = ledStates[1] = ledStates[3] = ledStates[4] = false;
+        Serial.println("Parpadeo LED 3");
+      }
+      break;
     }
-}
-
-// Función para apagar todos los LEDs
-void apagarLeds() {
-    for (int i = 0; i < 5; i++) {
-        digitalWrite(ledPins[i], LOW);
-        EstadoLeds[i] = false;
-    }
-}
-
-// Función para alternar los LEDs según el switch activado
-void conmutadorLeds(int activeSwitch) {
-    apagarLeds();
-    
-    if (activeSwitch == 4) {
-        // Si el switch 4 está activo, parpadean todos los LEDs
+    case 4: {
+      if (currentMillis - lastToggleTime >= 500) {  // 500 ms para un parpadeo de 1 Hz (toggle cada 500 ms)
+        lastToggleTime = currentMillis;
+        // Alterna el estado de todos los LEDs
         for (int i = 0; i < 5; i++) {
-            EstadoLeds[i] = !EstadoLeds[i];
-            digitalWrite(ledPins[i], EstadoLeds[i]);
+          ledStates[i] = !ledStates[i];
         }
-    } else {
-        // Solo parpadea un LED a la vez
-        EstadoLeds[activeSwitch - 1] = !EstadoLeds[activeSwitch - 1];
-        digitalWrite(ledPins[activeSwitch - 1], EstadoLeds[activeSwitch - 1]);
+        Serial.println("Parpadeo TODOS los LEDs");
+      }
+      break;
     }
+    default: {
+      // Si ningún switch está activado, se apagan todos los LEDs
+      for (int i = 0; i < 5; i++) {
+        ledStates[i] = false;
+      }
+      break;
+    }
+  }
 }
 
-// Función para imprimir el estado de los LEDs
-void printStatus(int activeSwitch) {
-    Serial.print("Switch activo: ");
-    Serial.println(activeSwitch);
-    
-    Serial.print("LEDs: ");
-    for (int i = 0; i < 5; i++) {
-        Serial.print(EstadoLeds[i] ? "ON " : "OFF ");
-    }
-    Serial.println();
+/*
+   updateAllLEDs():
+   Recorre el array de estados ledStates usando un while y actualiza los pines de salida.
+*/
+void updateAllLEDs() {
+  int i = 0;
+  while (i < 5) {
+    digitalWrite(ledPins[i], ledStates[i] ? HIGH : LOW);
+    i++;
+  }
+}
+
+/*
+   printStatus():
+   Imprime por Serial el estado (ON/OFF) de cada LED para fines de depuración.
+*/
+void printStatus() {
+  Serial.print("Estado LEDs: ");
+  for (int i = 0; i < 5; i++) {
+    Serial.print(ledStates[i] ? "ON " : "OFF ");
+  }
+  Serial.println();
 }
