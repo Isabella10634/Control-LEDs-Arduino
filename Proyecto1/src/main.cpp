@@ -49,7 +49,7 @@ void loop() {
   updateLeds(currentMode);   // Actualiza el parpadeo según el modo seleccionado
   updateAllLEDs();   // Llama la función para actualizar el estado de los pines de salida con digitalWrite()
   printStatus();   // Imprime el estado de los LEDs
-  delay(1000);   //Retardo para observar mejor los mensajes en el Monitor Serial
+  delay(10);   //Retardo para observar mejor los mensajes en el Monitor Serial
 }
 
 /*
@@ -83,7 +83,8 @@ void updateLeds(int mode) {
   
   switch (mode) {
     case 1: {
-      if (currentMillis - lastToggleTime >= 166) { //Indica cuánto tiempo ha pasado desde eel últimmo cambio de estado de LED y lo compara con el tiempo requerido. En este caso ~166 ms para 3 ciclos en 1 s
+      if (currentMillis - lastToggleTime >= 333) { //Indica cuánto tiempo ha pasado desde el últimmo cambio de estado de LED y lo compara con el tiempo requerido. En este caso ~333 ms para 3 ciclos en 1 s
+        Serial.println(currentMillis - lastToggleTime);
         lastToggleTime = currentMillis;   //Se actualiza el tiempo desde el cambio de estado de LED
         ledStates[0] = !ledStates[0]; //Alterna el estado del LED
         // Aseguramos que los demás LEDs permanezcan apagados
@@ -93,16 +94,19 @@ void updateLeds(int mode) {
       break;
     }
     case 2: {
-      if (currentMillis - lastToggleTime >= 83) {  // ~83 ms para 3 ciclos en 0.5 s
+      if (currentMillis - lastToggleTime >= 166) {  // ~166 ms para 3 ciclos en 0.5 s
+        Serial.println(currentMillis - lastToggleTime);
         lastToggleTime = currentMillis;
         ledStates[1] = !ledStates[1];
         ledStates[0] = ledStates[2] = ledStates[3] = ledStates[4] = false;
+        
         Serial.println("Parpadeo LED 2");
       }
       break;
     }
     case 3: {
-      if (currentMillis - lastToggleTime >= 41) {  // ~41 ms para 3 ciclos en 0.25 s
+      if (currentMillis - lastToggleTime >= 83) {  // ~83 ms para 3 ciclos en 0.25 s
+        Serial.println(currentMillis - lastToggleTime);
         lastToggleTime = currentMillis;
         ledStates[2] = !ledStates[2];
         ledStates[0] = ledStates[1] = ledStates[3] = ledStates[4] = false;
@@ -112,6 +116,7 @@ void updateLeds(int mode) {
     }
     case 4: {
       if (currentMillis - lastToggleTime >= 500) {  // 500 ms para un parpadeo de 1 Hz (toggle cada 500 ms)
+        Serial.println(currentMillis - lastToggleTime);
         lastToggleTime = currentMillis;
         // Alterna el estado de todos los LEDs
         for (int i = 0; i < 5; i++) {
