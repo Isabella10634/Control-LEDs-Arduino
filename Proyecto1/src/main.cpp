@@ -23,7 +23,7 @@ void setup() {
   
   // Configuración de los pines de los switches como INPUT
   for (int i = 0; i < 4; i++) {
-    pinMode(switchPins[i], INPUT);
+    pinMode(switchPins[i], INPUT_PULLUP);
   }
   
   // Configuración de los pines de los LEDs como salida
@@ -89,7 +89,7 @@ void updateLeds(int mode) {
         ledStates[0] = !ledStates[0]; //Alterna el estado del LED
         // Aseguramos que los demás LEDs permanezcan apagados
         ledStates[1] = ledStates[2] = ledStates[3] = ledStates[4] = false;
-        Serial.println("Parpadeo LED 1");
+        Serial.println("Switch 1 activo => Parpadeo LED 1");
       }
       break;
     }
@@ -100,7 +100,7 @@ void updateLeds(int mode) {
         ledStates[1] = !ledStates[1];
         ledStates[0] = ledStates[2] = ledStates[3] = ledStates[4] = false;
         
-        Serial.println("Parpadeo LED 2");
+        Serial.println("Switch 2 activo => Parpadeo LED 2");
       }
       break;
     }
@@ -110,7 +110,7 @@ void updateLeds(int mode) {
         lastToggleTime = currentMillis;
         ledStates[2] = !ledStates[2];
         ledStates[0] = ledStates[1] = ledStates[3] = ledStates[4] = false;
-        Serial.println("Parpadeo LED 3");
+        Serial.println("Switch 3 activo => Parpadeo LED 3");
       }
       break;
     }
@@ -122,7 +122,7 @@ void updateLeds(int mode) {
         for (int i = 0; i < 5; i++) {
           ledStates[i] = !ledStates[i];
         }
-        Serial.println("Parpadeo TODOS los LEDs");
+        Serial.println("Switch 4 activo => Parpadeo TODOS los LEDs");
       }
       break;
     }
